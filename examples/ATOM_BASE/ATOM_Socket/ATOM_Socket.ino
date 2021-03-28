@@ -14,11 +14,17 @@
 
 #include "index.h"
 
+/* 
+ *  WiFi mode 
+ *  0:AP
+ *  1:Client
+ */
+#define WiFiClient 0
+
 const char* ssid = "ATOM-SOCKET";
 const char* password = "12345678";
-
 int Voltage, ActivePower = 0;
-float Current = 0;
+float Current = 0,KWh = 0;
 
 WebServer server(80);
 
@@ -37,7 +43,7 @@ bool RelayFlag = false;
 
 String DataCreate() {
     String RelayState = (RelayFlag)?"on":"off";
-    String Data = "vol:<mark>"+String(Voltage)+"</mark>V#current:<mark>"+String(Current)+"</mark>A#power:<mark>"+String(ActivePower)+"</mark>W#state:<mark>"+RelayState+"</mark>";
+    String Data = "Vol:<mark>"+String(Voltage)+"</mark>V#Current:<mark>"+String(Current)+"</mark>A#Power:<mark>"+String(ActivePower)+"</mark>W#KWh:<mark>"+String(KWh)+"</mark>kWh#state:<mark>"+RelayState+"</mark>";
     return Data;
 }
 
@@ -45,6 +51,16 @@ void setup(){
     M5.begin(true, false, true);
     M5.dis.drawpix(0, 0xe0ffff);
     ATOM.Init(AtomSerial, RELAY, RXD);
+#if WiFiClient
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    Serial.println();
+    while(WiFi.status() != WL_CONNECTED){
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+#else
     WiFi.softAP(ssid, password);
     Serial.print("AP SSID: ");
     Serial.println(ssid);
@@ -52,6 +68,7 @@ void setup(){
     Serial.println(password);
     Serial.print("IP address: ");
     Serial.println(WiFi.softAPIP());  //IP address assigned to your ESP
+#endif
     server.on("/", handleRoot);
 
     server.on("/on", []() {
@@ -79,6 +96,7 @@ void loop(){
         Voltage = ATOM.GetVol();
         Current = ATOM.GetCurrent();
         ActivePower = ATOM.GetActivePower();
+        KWh = ATOM.GetKWh();
         Serial.print("Voltage: ");
 		Serial.print(Voltage);
         Serial.println(" V");
@@ -88,6 +106,9 @@ void loop(){
         Serial.print("ActivePower: ");
 		Serial.print(ActivePower);
         Serial.println(" W");
+        Serial.print("KWh: ");
+    Serial.print(KWh);
+        Serial.println(" KWh");
 	}
     if(M5.Btn.wasPressed()){
         RelayFlag = !RelayFlag;
