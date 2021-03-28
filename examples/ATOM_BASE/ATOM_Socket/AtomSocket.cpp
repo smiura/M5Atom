@@ -1,10 +1,12 @@
 #include "AtomSocket.h"
+#define SERIAL_SIZE_RX  1024
 
 void ATOMSOCKET::Init(HardwareSerial& SerialData, int _RelayIO, int _RXD) {
 	 AtomSerial = &SerialData; 
 	 RelayIO = _RelayIO;
 	 RXD = _RXD;
 	 AtomSerial->begin(4800,SERIAL_8E1,RXD);
+	 AtomSerial->setRxBufferSize(SERIAL_SIZE_RX);
 	 pinMode(RelayIO,OUTPUT);
 	 VF = VolR1 / VolR2 / 1000.0; 
 	 CF = 1.0 / (CurrentRF *1000.0);
@@ -90,8 +92,8 @@ float ATOMSOCKET::GetVolAnalog()
 float ATOMSOCKET::GetCurrent()
 {
 	float Current = GetCurrentAnalog() * CF - 0.06f;
+	if(Current<0){Current=0;}
 	return Current;
-
 }
 
 float ATOMSOCKET::GetCurrentAnalog()
@@ -102,8 +104,8 @@ float ATOMSOCKET::GetCurrentAnalog()
 }
 
 
-float ATOMSOCKET::GetActivePower()
-{	float FPowerPar = PowerPar;
+float ATOMSOCKET::GetActivePower(){
+	float FPowerPar = PowerPar;
 	float FPowerData = PowerData;
 	Serial.print("FPowerData:");
 	Serial.println(FPowerData);
@@ -124,7 +126,7 @@ float ATOMSOCKET::GetPowerFactor()
 {
 	float ActivePower = GetActivePower();
 	float InspectingPower = GetInspectingPower();
-	return ActivePower / InspectingPower ;  
+	return ActivePower / InspectingPower;  
 }
 
 
@@ -143,10 +145,25 @@ uint32_t ATOMSOCKET::GetPFAll()
 float ATOMSOCKET::GetKWh()
 {
 	float InspectingPower = GetInspectingPower(); //视在功率
-	uint32_t PFcnt = (1/PowerPar) *(1/InspectingPower) * 1000000000 * 3600;
-	float KWh = (PFData * PF) / PFcnt;
+	float fPowerPar = PowerPar;
+	uint32_t PFcnt = (1/fPowerPar)*(1/InspectingPower)*1000000000*3600;
+	Serial.println("-- GetKWh Sec --");
+	Serial.print("PowerPar:");
+	Serial.println(PowerPar);
+	Serial.print("InspectingPower:");
+	Serial.println(InspectingPower);
+	Serial.print("PFcnt:");
+	Serial.println(PFcnt);
+	Serial.print("PFData:");
+	Serial.println(PFData);
+	Serial.print("PF:");
+	Serial.println(PF);
+	Serial.println("----------------");
+	float KWh = 0;
+	if(PFcnt != 0){
+	KWh = (PFData * PF) / PFcnt;
+	}
 	return KWh;
-
 }
 
 
